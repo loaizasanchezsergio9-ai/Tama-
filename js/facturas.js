@@ -280,6 +280,149 @@ function waLink(f) {
   return 'https://wa.me/' + ph + '?text=' + encodeURIComponent(L.join('\n'));
 }
 
+
+/* ---------- Descargar como imagen PNG (se dibuja en canvas, sin librerías) ---------- */
+const ORANGE = '#d9540a', PINK = '#fccfdc', CREAM = '#fffaf5', HEAD = '#fbd3df';
+const loadImg = src => new Promise(r => { const i = new Image(); i.onload = () => r(i); i.onerror = () => r(null); i.src = src; });
+function wrap(ctx, text, maxW) {
+  const out = [];
+  String(text || '').split('\n').forEach(par => {
+    let line = '';
+    par.split(' ').forEach(w => {
+      const t = line ? line + ' ' + w : w;
+      if (ctx.measureText(t).width > maxW && line) { out.push(line); line = w; } else line = t;
+    });
+    out.push(line);
+  });
+  return out;
+}
+function spaced(ctx, text, cx, y, gap) { // texto con letras separadas, centrado en cx
+  const w = [...text].reduce((s, ch) => s + ctx.measureText(ch).width + gap, -gap);
+  let x = cx - w / 2; ctx.textAlign = 'left';
+  [...text].forEach(ch => { ctx.fillText(ch, x, y); x += ctx.measureText(ch).width + gap; });
+}
+function rrect(ctx, x, y, w, h, r) {
+  ctx.beginPath(); ctx.moveTo(x + r, y); ctx.arcTo(x + w, y, x + w, y + h, r); ctx.arcTo(x + w, y + h, x, y + h, r);
+  ctx.arcTo(x, y + h, x, y, r); ctx.arcTo(x, y, x + w, y, r); ctx.closePath();
+}
+function heart(ctx, cx, cy, s) { // sello de corazón rojo
+  const path = () => { ctx.beginPath(); ctx.moveTo(cx, cy + s * .42);
+    ctx.bezierCurveTo(cx - s * .62, cy - s * .02, cx - s * .5, cy - s * .5, cx - s * .2, cy - s * .42);
+    ctx.bezierCurveTo(cx - s * .06, cy - s * .38, cx, cy - s * .28, cx, cy - s * .2);
+    ctx.bezierCurveTo(cx, cy - s * .28, cx + s * .06, cy - s * .38, cx + s * .2, cy - s * .42);
+    ctx.bezierCurveTo(cx + s * .5, cy - s * .5, cx + s * .62, cy - s * .02, cx, cy + s * .42); ctx.closePath(); };
+  ctx.save(); ctx.shadowColor = '#7a0f1f55'; ctx.shadowBlur = 14; ctx.shadowOffsetY = 6;
+  const g = ctx.createRadialGradient(cx - s * .15, cy - s * .2, s * .05, cx, cy, s * .6);
+  g.addColorStop(0, '#e8444f'); g.addColorStop(.6, '#c1121f'); g.addColorStop(1, '#8a0f1d');
+  path(); ctx.fillStyle = g; ctx.fill(); ctx.restore();
+  ctx.save(); path(); ctx.lineWidth = 3; ctx.strokeStyle = '#7a0f1f88'; ctx.stroke(); ctx.restore();
+  ctx.save(); ctx.translate(cx, cy + 2); ctx.scale(.62, .62); ctx.translate(-cx, -cy - 2); path();
+  ctx.lineWidth = 3; ctx.strokeStyle = '#ffffff30'; ctx.stroke(); ctx.restore();
+}
+
+async function invoiceCanvas(f) {
+  const c = calc(f), p = db.profile || {}, W = 1080, S = 2, X0 = 100, X1 = 980, TW = X1 - X0;
+  const cols = [350, 145, 185, 200], FS = 'system-ui, Arial, sans-serif';
+  const m = document.createElement('canvas').getContext('2d');
+  m.font = `26px ${FS}`;
+  const rows = (f.items.length ? f.items : [{ name: '', qty: 0, price: 0 }]).map(l => {
+    const lines = wrap(m, (l.name || '').toUpperCase(), cols[0] - 32);
+    return { l, lines, h: Math.max(80, lines.length * 32 + 32) };
+  });
+  const tbl = rows.reduce((s, r) => s + r.h, 70);
+  m.font = `26px ${FS}`; const nl = f.notes ? wrap(m, f.notes, 450) : [];
+  const tl = [['Subtotal', cop(c.sub)]]; // totales
+  if (c.disc) tl.push([f.discType === '%' ? `Descuento (${money(f.disc)}%)` : 'Descuento', '− ' + cop(c.disc)]);
+  if (money(f.ship)) tl.push(['Domicilio', cop(f.ship)]);
+  tl.push(['Total', cop(c.total), 1]);
+  if (c.paid) tl.push(['Abonado', cop(c.paid)]);
+  if (c.paid && c.bal) tl.push(['Saldo pendiente', cop(c.bal), 2]);
+  const blockH = Math.max(tl.length * 48, nl.length ? nl.length * 34 + 40 : 0);
+  const tblTop = 600, totTop = tblTop + tbl + 40, footTop = totTop + blockH + 50, cardH = footTop + 150 + 40 - 50;
+  const H = cardH + 100;
+
+  const cv = document.createElement('canvas'); cv.width = W * S; cv.height = H * S;
+  const ctx = cv.getContext('2d'); ctx.scale(S, S); ctx.textBaseline = 'alphabetic';
+  ctx.fillStyle = PINK; ctx.fillRect(0, 0, W, H);
+  ctx.save(); ctx.shadowColor = '#d9547a22'; ctx.shadowBlur = 30; rrect(ctx, 50, 50, W - 100, cardH, 56); ctx.fillStyle = CREAM; ctx.fill(); ctx.restore();
+
+  // Encabezado: logo + nombre + eslogan
+  const logo = await loadImg('assets/logo.png');
+  if (logo) { ctx.save(); ctx.beginPath(); ctx.arc(X1 - 100, 190, 100, 0, 7); ctx.clip(); ctx.drawImage(logo, X1 - 200, 90, 200, 200); ctx.restore(); }
+  ctx.fillStyle = ORANGE; ctx.textAlign = 'center';
+  let fs = 68; const biz = (p.business || 'Mi emprendimiento').trim();
+  ctx.font = `bold ${fs}px Georgia, 'Times New Roman', serif`;
+  while (ctx.measureText(biz).width > 640 && fs > 34) { fs -= 2; ctx.font = `bold ${fs}px Georgia, 'Times New Roman', serif`; }
+  ctx.fillText(biz, 410, 185);
+  ctx.font = `bold 20px ${FS}`; spaced(ctx, 'UN TOQUE DE MAGIA PARA', 410, 235, 4); spaced(ctx, 'TU BELLEZA', 410, 264, 4);
+  const info = [p.phone ? '☎ ' + p.phone : '', p.city].filter(Boolean).join('  ·  ');
+  if (info) { ctx.font = `22px ${FS}`; ctx.fillText(info, 410, 304); }
+
+  // Fecha y número
+  ctx.textAlign = 'right'; ctx.font = `28px ${FS}`;
+  const d = f.date ? new Date(f.date + 'T00:00').toLocaleDateString('es-CO', { day: 'numeric', month: 'long', year: 'numeric' }) : '';
+  ctx.fillText(d, X1, 372);
+  ctx.font = `bold 28px ${FS}`; ctx.fillText('Número de factura  ' + num4(f.num), X1, 412);
+
+  // Cliente
+  ctx.textAlign = 'left'; ctx.font = `bold 36px ${FS}`; ctx.fillText('Nombre', X0, 495);
+  const nw = ctx.measureText('Nombre').width; ctx.font = `36px ${FS}`; ctx.fillText(f.client || '', X0 + nw + 24, 495);
+  ctx.font = `26px ${FS}`;
+  const sub2 = [f.phone ? 'Tel: ' + f.phone : '', 'Pago: ' + f.method, 'Estado: ' + c.status].filter(Boolean).join('   ·   ');
+  ctx.fillText(sub2, X0, 545);
+
+  // Tabla
+  ctx.lineWidth = 3; ctx.strokeStyle = ORANGE;
+  ctx.fillStyle = HEAD; ctx.fillRect(X0, tblTop, TW, 70);
+  let y = tblTop + 70, x = X0;
+  ctx.fillStyle = ORANGE; ctx.textAlign = 'center'; ctx.font = `bold 24px ${FS}`;
+  ['DESCRIPCIÓN', 'CANTIDAD', 'PRECIO', 'TOTAL'].forEach((t, i) => { ctx.fillText(t, x + cols[i] / 2, tblTop + 44); x += cols[i]; });
+  ctx.font = `26px ${FS}`;
+  rows.forEach(r => {
+    x = X0; const mid = y + r.h / 2 + 9;
+    const top = y + r.h / 2 - (r.lines.length - 1) * 16 + 9;
+    r.lines.forEach((ln, k) => ctx.fillText(ln, x + cols[0] / 2, top + k * 32));
+    ctx.fillText(String(r.l.qty ?? ''), x + cols[0] + cols[1] / 2, mid);
+    ctx.fillText(cop(r.l.price), x + cols[0] + cols[1] + cols[2] / 2, mid);
+    ctx.fillText(cop(r.l.qty * r.l.price), x + cols[0] + cols[1] + cols[2] + cols[3] / 2, mid);
+    y += r.h;
+  });
+  ctx.strokeRect(X0, tblTop, TW, tbl); // bordes de la tabla
+  ctx.beginPath(); ctx.moveTo(X0, tblTop + 70); ctx.lineTo(X1, tblTop + 70);
+  x = X0; cols.slice(0, -1).forEach(w => { x += w; ctx.moveTo(x, tblTop); ctx.lineTo(x, tblTop + tbl); });
+  y = tblTop + 70; rows.slice(0, -1).forEach(r => { y += r.h; ctx.moveTo(X0, y); ctx.lineTo(X1, y); });
+  ctx.stroke();
+
+  // Notas (izquierda) y totales (derecha)
+  ctx.textAlign = 'left'; ctx.fillStyle = ORANGE;
+  if (nl.length) { ctx.font = `bold 22px ${FS}`; ctx.fillText('Notas', X0, totTop + 22); ctx.font = `26px ${FS}`; nl.forEach((ln, k) => ctx.fillText(ln, X0, totTop + 62 + k * 34)); }
+  y = totTop + 30;
+  tl.forEach(([a, b, kind]) => {
+    ctx.font = `${kind ? 'bold ' : ''}${kind == 1 ? 38 : 28}px ${FS}`;
+    ctx.textAlign = 'left'; ctx.fillText(a, 590, y); ctx.textAlign = 'right'; ctx.fillText(b, X1 - 16, y); y += 48;
+  });
+
+  // Pie: sello de corazón + gracias
+  heart(ctx, X0 + 70, footTop + 60, 150);
+  ctx.fillStyle = ORANGE; ctx.font = `bold 26px ${FS}`; ctx.textAlign = 'left';
+  const gx = X0 + 190; [...'¡GRACIAS POR SU PREFERENCIA!'].reduce((xx, ch) => { ctx.fillText(ch, xx, footTop + 70); return xx + ctx.measureText(ch).width + 4; }, gx);
+  if (c.status === 'Pagada') {
+    ctx.save(); ctx.translate(840, footTop + 140); ctx.rotate(-.2); ctx.strokeStyle = ctx.fillStyle = '#2e9e4f'; ctx.lineWidth = 6;
+    rrect(ctx, -110, -40, 220, 80, 14); ctx.stroke(); ctx.font = `bold 44px ${FS}`; ctx.textAlign = 'center'; ctx.fillText('PAGADA', 0, 15); ctx.restore();
+  }
+  return cv;
+}
+async function downloadPng(f) {
+  const btn = $('#vPng'); btn.disabled = true;
+  try {
+    const cv = await invoiceCanvas(f);
+    const name = 'Factura-' + num4(f.num) + '-' + (f.client || '').normalize('NFD').replace(/[\u0300-\u036f]/g, '').replace(/[^\w]+/g, '-').replace(/^-|-$/g, '') + '.png';
+    cv.toBlob(b => { const a = document.createElement('a'); a.href = URL.createObjectURL(b); a.download = name; a.click(); setTimeout(() => URL.revokeObjectURL(a.href), 4000); }, 'image/png');
+  } catch (e) { alert('No se pudo crear la imagen. Prueba con el botón PDF.'); }
+  btn.disabled = false;
+}
+$('#vPng').onclick = () => downloadPng(current());
+
 $('#vPrint').onclick = () => printInvoice(current());
 $('#vWa').onclick = () => window.open(waLink(current()), '_blank', 'noopener');
 $('#vEdit').onclick = () => { const f = current(); $('#vDlg').close(); openInvoice(f); };
