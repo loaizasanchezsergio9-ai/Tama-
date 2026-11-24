@@ -295,5 +295,12 @@ window.invoiceFromOrder = id => {
   openInvoice({ ...blank(), client: o.client, notes: o.notes || '', orderId: id, items });
 };
 
+
+/* ---------- Mostrar/ocultar la pestaña por sí sola (funciona aunque app.js sea una versión vieja en caché) ---------- */
+document.querySelectorAll('nav button').forEach(b => b.addEventListener('click', () => {
+  const on = b.dataset.tab === 'invoices';
+  $('#tab-invoices').hidden = !on;
+  if (on) renderInvoices();
+}));
 renderInvoices();
 })();
