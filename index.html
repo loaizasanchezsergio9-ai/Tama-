@@ -6,6 +6,7 @@
 <title>Tama Beauty · Gestión</title>
 <link rel="icon" href="assets/favicon.png">
 <link rel="stylesheet" href="css/styles.css">
+<link rel="stylesheet" href="css/facturas.css">
 </head>
 <body>
 <!-- ACCESO: crear cuenta (primera vez) o iniciar sesión -->
@@ -29,6 +30,7 @@
     <nav>
       <button data-tab="products" class="on">Productos</button>
       <button data-tab="orders">Entregas</button>
+      <button data-tab="invoices">Facturas</button>
       <button data-tab="profile">Perfil</button>
     </nav>
   </header>
@@ -59,6 +61,19 @@
     </div>
     <div id="cal" class="cal"></div>
     <div id="olist"></div>
+  </main>
+
+  <!-- FACTURAS: módulo aparte (js/facturas.js) -->
+  <main id="tab-invoices" hidden>
+    <div class="sumcards" id="iCards"></div>
+    <div class="bar">
+      <input id="iSearch" placeholder="Buscar por cliente o N° de factura…">
+      <select id="iStatus"><option value="">Todos los estados</option><option>Pendiente</option><option>Abonada</option><option>Pagada</option></select>
+      <select id="iMonth"></select>
+      <button id="iNew" class="btn">+ Nueva factura</button>
+      <button id="iCsv" class="btn ghost">Exportar CSV</button>
+    </div>
+    <div id="iList"></div>
   </main>
 
   <!-- PERFIL + RESPALDO -->
@@ -96,6 +111,63 @@
     <div class="bar"><button class="btn">Guardar</button><button type="button" id="oCancel" class="btn ghost">Cancelar</button></div>
   </form>
 </dialog>
+<!-- Editor de factura -->
+<dialog id="invDlg" class="big">
+  <form id="invForm" class="inv-ed">
+    <div class="ed-head">
+      <img src="assets/logo.png" alt="" class="logo-sm">
+      <div><h3 id="edBiz"></h3><small id="edSub"></small></div>
+      <div class="ed-no">
+        <label>Factura N°<input id="iNum" type="number" min="1" required></label>
+        <label>Fecha<input id="iDate" type="date" required></label>
+      </div>
+    </div>
+    <div class="ed-grid">
+      <label>Nombre del cliente<input id="iClient" required maxlength="80" autocomplete="off" list="clientList"></label>
+      <label>Teléfono / WhatsApp<input id="iPhone" type="tel" inputmode="tel" maxlength="20"></label>
+      <label>Método de pago<select id="iMethod"></select></label>
+    </div>
+    <div>
+      <div class="il il-h"><span>Producto</span><span>Cant.</span><span>Precio</span><span>Total</span><span></span></div>
+      <div id="iLines"></div>
+    </div>
+    <button type="button" id="iAddLine" class="btn ghost">+ Agregar producto</button>
+    <div class="ed-bottom">
+      <label>Notas (salen en la factura)<textarea id="iNotes" rows="5" maxlength="300" placeholder="Ej: entrega el sábado, garantía, datos de pago…"></textarea></label>
+      <div class="tot">
+        <div><span>Subtotal</span><b id="tSub"></b></div>
+        <div><span>Descuento</span><span class="grp"><input id="iDisc" type="number" min="0" step="any" placeholder="0"><select id="iDiscT"><option>%</option><option>$</option></select></span></div>
+        <small class="hint" id="tDisc"></small>
+        <div><span>Domicilio</span><input id="iShip" type="number" min="0" step="500" placeholder="0"></div>
+        <div class="grand"><span>TOTAL</span><b id="tTotal"></b></div>
+        <div><span>Abonado</span><input id="iPaid" type="number" min="0" step="500" placeholder="0"></div>
+        <div><span>Saldo</span><b id="tBal"></b></div>
+        <div><span>Estado</span><span class="chip" id="tState"></span></div>
+        <button type="button" id="iFull" class="btn ghost sm">Marcar pago completo</button>
+      </div>
+    </div>
+    <p id="iMsg" class="err"></p>
+    <div class="bar"><button class="btn" data-view="">Guardar</button><button class="btn ghost" data-view="1">Guardar y ver</button><button type="button" id="iCancel" class="btn ghost">Cancelar</button></div>
+  </form>
+</dialog>
+<datalist id="prodList"></datalist>
+<datalist id="clientList"></datalist>
+
+<!-- Vista previa de factura -->
+<dialog id="vDlg" class="big">
+  <div id="vSheet"></div>
+  <div class="bar vbar">
+    <button id="vPrint" class="btn">🖨 Imprimir / Guardar PDF</button>
+    <button id="vWa" class="btn ghost">WhatsApp</button>
+    <button id="vEdit" class="btn ghost">Editar</button>
+    <button id="vClose" class="btn ghost">Cerrar</button>
+  </div>
+</dialog>
+
+<!-- Zona que se imprime (solo la factura) -->
+<div id="invPrint"></div>
+
 <script src="js/app.js"></script>
+<script src="js/facturas.js"></script>
 </body>
 </html>

@@ -26,3 +26,6 @@ Es uso personal de una sola persona: sin servidor no hay costos, ni claves expue
 
 ## Respaldo
 Perfil → "Descargar respaldo (JSON)" cada semana o tras muchos cambios. "Importar respaldo" restaura todo. Productos → "Exportar CSV" abre en Excel.
+
+## Facturas (módulo nuevo)
+Pestaña **Facturas** (`js/facturas.js` + `css/facturas.css`): crea facturas con nombre del cliente, fecha, productos con cantidad y precio (suma automática), descuento, domicilio, abonos y saldo. Numeración automática, vista previa con el diseño de Tama Beauty, imprimir / guardar PDF, envío por WhatsApp y exportación a CSV. También puedes generar una factura desde una entrega con el botón 🧾. Las facturas entran en el respaldo JSON.
