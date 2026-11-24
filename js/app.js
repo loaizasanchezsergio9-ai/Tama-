@@ -32,7 +32,7 @@ function start(){$('#auth').hidden=true;$('#app').hidden=false;$('#bizName').tex
 /* ---------- Pestañas ---------- */
 document.querySelectorAll('nav button').forEach(b=>b.onclick=()=>{
   document.querySelectorAll('nav button').forEach(x=>x.classList.toggle('on',x==b));
-  ['products','orders','profile'].forEach(t=>$('#tab-'+t).hidden=t!=b.dataset.tab);
+  ['products','orders','invoices','profile'].forEach(t=>$('#tab-'+t).hidden=t!=b.dataset.tab);
 });
 
 /* ---------- Productos ---------- */
@@ -92,11 +92,12 @@ function renderOrders(){
     <small>${o.items.map(i=>`${i.qty}× ${esc(prod(i.pid)?.name||'(eliminado)')}`).join(', ')||'Sin productos'} — <b>${cop(total(o.items))}</b></small>
     ${o.notes?`<small>📝 ${esc(o.notes)}</small>`:''}
     <div><select data-st>${STATES.map(s=>`<option${s==o.status?' selected':''}>${s}</option>`).join('')}</select>
-    <button class="x" data-edit>✏️</button><button class="x" data-delo>🗑</button></div></div>`).join('')||'<p class="sum">No hay entregas en este filtro.</p>';
+    <button class="x" data-inv title="Crear factura">🧾</button><button class="x" data-edit>✏️</button><button class="x" data-delo>🗑</button></div></div>`).join('')||'<p class="sum">No hay entregas en este filtro.</p>';
 }
 $('#olist').onchange=e=>{if(e.target.dataset.st!==undefined){db.orders.find(o=>o.id==e.target.closest('.order').dataset.id).status=e.target.value;save();renderOrders()}};
 $('#olist').onclick=e=>{
   const el=e.target.closest('.order');if(!el)return;
+  if(e.target.dataset.inv!==undefined)invoiceFromOrder(el.dataset.id);
   if(e.target.dataset.edit!==undefined)openOrder(el.dataset.id);
   if(e.target.dataset.delo!==undefined&&confirm('¿Eliminar esta entrega?')){db.orders=db.orders.filter(o=>o.id!=el.dataset.id);save();renderCal();renderOrders()}
 };
